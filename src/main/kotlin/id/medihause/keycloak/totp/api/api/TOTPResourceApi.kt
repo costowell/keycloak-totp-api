@@ -4,9 +4,9 @@ import id.medihause.keycloak.totp.api.dto.CommonApiResponse
 import id.medihause.keycloak.totp.api.dto.GenerateTOTPResponse
 import id.medihause.keycloak.totp.api.dto.RegisterTOTPCredentialRequest
 import id.medihause.keycloak.totp.api.dto.VerifyTOTPRequest
-import jakarta.ws.rs.*
-import jakarta.ws.rs.core.MediaType
-import jakarta.ws.rs.core.Response
+import javax.ws.rs.*
+import javax.ws.rs.core.MediaType
+import javax.ws.rs.core.Response
 import org.keycloak.credential.CredentialProvider
 import org.keycloak.models.KeycloakSession
 import org.keycloak.models.UserCredentialModel
