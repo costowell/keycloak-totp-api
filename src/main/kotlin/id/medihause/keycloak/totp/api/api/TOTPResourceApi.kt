@@ -4,7 +4,6 @@ import id.medihause.keycloak.totp.api.dto.CommonApiResponse
 import id.medihause.keycloak.totp.api.dto.GenerateTOTPResponse
 import id.medihause.keycloak.totp.api.dto.RegisterTOTPCredentialRequest
 import id.medihause.keycloak.totp.api.dto.VerifyTOTPRequest
-import id.medihause.keycloak.totp.api.dto.IsRegisteredTOTPRequest
 import id.medihause.keycloak.totp.api.dto.UnregisterTOTPCredentialRequest
 import javax.ws.rs.*
 import javax.ws.rs.core.MediaType
@@ -174,6 +173,10 @@ class TOTPResourceApi(
     fun unregisterTOTP(request: UnregisterTOTPCredentialRequest, @PathParam("userId") userId: String): Response {
         val user = authenticateSessionAndGetUser(userId)
 
+        if (!UnregisterTOTPCredentialRequest.validate(request)) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(CommonApiResponse("Invalid request")).build()
+        }
+
         val realm = session.context.realm
         val credentialModel = user.credentialManager().getStoredCredentialByNameAndType(
             request.deviceName,
@@ -186,10 +189,14 @@ class TOTPResourceApi(
         }
 
         val totpCredentialProvider = session.getProvider(CredentialProvider::class.java, "keycloak-otp")
-        if (!totpCredentialProvider.deleteCredential(realm, user, request.deviceName)) {
-            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+        val totpCredentialModel = OTPCredentialModel.createFromCredentialModel(credentialModel)
+        val credentialId = totpCredentialModel.id
+        val removed = totpCredentialProvider.deleteCredential(realm, user, credentialId);
+        return if (removed) {
+            Response.ok().entity(CommonApiResponse("TOTP credential unregistered")).build()
+        } else {
+            Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                 .entity(CommonApiResponse("Failed to delete TOTP credential")).build()
         }
-        return Response.ok().entity(CommonApiResponse("TOTP credential unregistered")).build()
     }
 }
