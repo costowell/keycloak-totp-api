@@ -4,6 +4,8 @@ import id.medihause.keycloak.totp.api.dto.CommonApiResponse
 import id.medihause.keycloak.totp.api.dto.GenerateTOTPResponse
 import id.medihause.keycloak.totp.api.dto.RegisterTOTPCredentialRequest
 import id.medihause.keycloak.totp.api.dto.VerifyTOTPRequest
+import id.medihause.keycloak.totp.api.dto.IsRegisteredTOTPRequest
+import id.medihause.keycloak.totp.api.dto.UnregisterTOTPCredentialRequest
 import javax.ws.rs.*
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
@@ -45,6 +47,29 @@ class TOTPResourceApi(
         }
 
         return user
+    }
+
+    @GET
+    @Path("/{userId}/isRegistered")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    fun isRegistered(request: IsRegisteredTOTPRequest, @PathParam("userId") userId: String): Response {
+        val user = authenticateSessionAndGetUser(userId)
+
+        if (!IsRegisteredTOTPRequest.validate(request)) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(CommonApiResponse("Invalid request")).build()
+        }
+
+        val credentialModel = user.credentialManager().getStoredCredentialByNameAndType(
+            request.deviceName,
+            OTPCredentialModel.TYPE
+        )
+
+        return if (credentialModel != null) {
+            Response.ok().entity(CommonApiResponse("TOTP credential exists")).build()
+        } else {
+            Response.status(Response.Status.NOT_FOUND).entity(CommonApiResponse("TOTP credential exists")).build()
+        }
     }
 
     @GET
@@ -144,5 +169,31 @@ class TOTPResourceApi(
         }
 
         return Response.status(Response.Status.CREATED).entity(CommonApiResponse("TOTP credential registered")).build()
+    }
+
+    @POST
+    @Path("/{userId}/unregister")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    fun unregisterTOTP(request: UnregisterTOTPCredentialRequest, @PathParam("userId") userId: String): Response {
+        val user = authenticateSessionAndGetUser(userId)
+
+        val realm = session.context.realm
+        val credentialModel = user.credentialManager().getStoredCredentialByNameAndType(
+            request.deviceName,
+            OTPCredentialModel.TYPE
+        )
+
+        if (credentialModel == null) {
+            return Response.status(Response.Status.NOT_FOUND).entity(CommonApiResponse("TOTP credential not found"))
+                .build()
+        }
+
+        val totpCredentialProvider = session.getProvider(CredentialProvider::class.java, "keycloak-otp")
+        if (!totpCredentialProvider.deleteCredential(realm, user, request.deviceName)) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(CommonApiResponse("Failed to delete TOTP credential")).build()
+        }
+        return Response.ok().entity(CommonApiResponse("TOTP credential unregistered")).build()
     }
 }
