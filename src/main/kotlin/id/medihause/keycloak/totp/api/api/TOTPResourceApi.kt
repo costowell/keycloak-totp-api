@@ -50,18 +50,14 @@ class TOTPResourceApi(
     }
 
     @GET
-    @Path("/{userId}/isRegistered")
+    @Path("/{userId}/isRegistered/{deviceName}")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    fun isRegistered(request: IsRegisteredTOTPRequest, @PathParam("userId") userId: String): Response {
+    fun isRegistered(@PathParam("userId") userId: String, @PathParam("deviceName") deviceName: String): Response {
         val user = authenticateSessionAndGetUser(userId)
 
-        if (!IsRegisteredTOTPRequest.validate(request)) {
-            return Response.status(Response.Status.BAD_REQUEST).entity(CommonApiResponse("Invalid request")).build()
-        }
-
         val credentialModel = user.credentialManager().getStoredCredentialByNameAndType(
-            request.deviceName,
+            deviceName,
             OTPCredentialModel.TYPE
         )
 
