@@ -14,6 +14,7 @@ import org.keycloak.models.UserModel
 import org.keycloak.models.credential.OTPCredentialModel
 import org.keycloak.models.utils.Base32
 import org.keycloak.models.utils.HmacOTP
+import org.keycloak.models.utils.TimeBasedOTP
 import org.keycloak.services.managers.AppAuthManager
 import org.keycloak.utils.CredentialHelper
 import org.keycloak.utils.TotpUtils
@@ -128,6 +129,12 @@ class TOTPResourceApi(
         if (credentialModel != null && !request.overwrite) {
             return Response.status(Response.Status.CONFLICT).entity(CommonApiResponse("TOTP credential already exists"))
                 .build()
+        }
+
+        val totp = TimeBasedOTP(realm.otpPolicy.algorithm, realm.otpPolicy.digits, realm.otpPolicy.period, 1)
+        if (!totp.validateTOTP(request.initialCode, secret.toByteArray())) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(CommonApiResponse("Invalid initial TOTP code")).build()
         }
 
         val totpCredentialModel = OTPCredentialModel.createFromPolicy(realm, secret, request.deviceName)
